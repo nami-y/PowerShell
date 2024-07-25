@@ -1,0 +1,27 @@
+$subscriptions = @(
+  "subscriptionId1",
+  "subscriptionId2"
+)
+
+#結果を格納する配列を初期化
+$policyInfoList = @()
+
+#各SubごとにPolicy定義を取得
+foreach ($subscriptionId in $subscriptions) {
+  #subの切り替え
+  Select-AzSubscription -Subscription $subscriptionId
+
+  $policy = Get-AzPolicyDefinition | Select-Object -Property DisplayName, Description, PolicyType, Metadata #| Format-List
+
+  foreach ($p in $policy) {
+    $policyInfoList += [PSCustomObject]@{
+      DisplayName = $p.Displayname
+      Description = $p.Description
+      Policytype  = $p.PolicyType
+      Metadata    = $p.Metadata
+    }
+  }
+}
+
+#CSVファイルに保存
+$policyInfoList | Export-Csv -Path "\home\PolicyDefinition.csv" -NoTypeInfomation -Encoding utf8
