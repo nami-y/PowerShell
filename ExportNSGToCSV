@@ -1,0 +1,154 @@
+Sub ExportNSGToCSV()
+    Dim wsSource As Worksheet
+    Dim wsFormat As Worksheet
+    Dim wbFormat As Workbook
+    Dim wbNew As Workbook
+    Dim wsNew As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim nsgType As String
+    Dim rgName As String
+    Dim nsgName As String
+    Dim vnetName As String
+    Dim subnetName As String
+    Dim subnetRange As String
+    Dim targetSheet As String
+    Dim nextRow As Long
+    Dim savePath As String
+    Dim formatFilePath As String
+    Dim formatRowCount As Long
+    Dim j As Long
+    Dim additionalFormatFilePath As String
+    Dim wbAdditionalFormat As Workbook
+    Dim additionalDataFound As Boolean
+    Dim lastNewRow As Long
+
+    ' マクロがあるファイルのシートを設定
+    Set wsSource = ThisWorkbook.Sheets("Sheet1") ' ここでシート名を指定してください
+
+    ' フォーマットファイルを選択
+    formatFilePath = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx")
+    If formatFilePath = "False" Then Exit Sub
+    Set wbFormat = Workbooks.Open(formatFilePath)
+
+    ' 新しいファイルを作成
+    Set wbNew = Workbooks.Add
+    Set wsNew = wbNew.Sheets(1)
+
+    ' 最終行の取得
+    lastRow = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
+
+    ' 追加データが存在するかのフラグ
+    additionalDataFound = False
+
+    ' 1回目の処理
+    For i = 2 To lastRow
+        nsgType = wsSource.Cells(i, 3).Value
+        rgName = wsSource.Cells(i, 1).Value
+        nsgName = wsSource.Cells(i, 2).Value
+        vnetName = wsSource.Cells(i, 4).Value
+        subnetName = wsSource.Cells(i, 5).Value
+        subnetRange = wsSource.Cells(i, 6).Value
+
+        ' Typeに応じたシートを選択
+        Select Case LCase(nsgType)
+            Case "common"
+                targetSheet = "Common" 'シート名は適宜変更
+            Case "appgw"
+                targetSheet = "ApplicationGw"
+            Case "databricks"
+                targetSheet = "Databricks"
+            'Case "sqlmi"
+                'targetSheet = "Sqlmi"
+            Case Else
+                MsgBox "Unknown NSG Type: " & nsgType
+                Exit Sub
+        End Select
+
+        Set wsFormat = wbFormat.Sheets(targetSheet)
+        formatRowCount = wsFormat.Cells(wsFormat.Rows.Count, "A").End(xlUp).Row ' フォーマットの最終行を取得
+
+        ' 次の空行を探す
+        nextRow = wsNew.Cells(wsNew.Rows.Count, "A").End(xlUp).Row + 1 '実際はBに変更（フォーマットの仕様上）
+
+        ' コピー（1回目は先頭行を含む、2回目以降は先頭行を除く）
+        If i = 2 Then
+            wsFormat.Range("A1").Resize(formatRowCount, wsFormat.UsedRange.Columns.Count).Copy
+            wsNew.Cells(nextRow, 1).PasteSpecial Paste:=xlPasteValues
+            ' フォーマット行数すべてにリソースグループ名とNSG名を入力
+            For j = 1 To formatRowCount - 1
+                wsNew.Cells(nextRow + j, 2).Value = rgName
+                wsNew.Cells(nextRow + j, 3).Value = nsgName
+            Next j
+        Else
+            wsFormat.Range("A2").Resize(formatRowCount - 1, wsFormat.UsedRange.Columns.Count).Copy
+            wsNew.Cells(nextRow, 1).PasteSpecial Paste:=xlPasteValues
+            ' フォーマット行数すべてにリソースグループ名とNSG名を入力
+            For j = 1 To formatRowCount - 1
+                wsNew.Cells(nextRow + j - 1, 2).Value = rgName
+                wsNew.Cells(nextRow + j - 1, 3).Value = nsgName
+            Next j
+        End If
+
+        ' 追加データが存在する場合の処理
+        If Len（vnetName) > 0 And Len(subnetName) > 0 And Len(subnetRange) > 0 Then
+            ' 追加データが存在する場合にのみフォーマットファイルを一度開く
+            If Not additionalDataFound Then
+                additionalFormatFilePath = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx")
+                If additionalFormatFilePath = "False" Then Exit Sub
+                Set wbAdditionalFormat = Workbooks.Open(additionalFormatFilePath)
+                additionalDataFound = True
+            End If
+
+            ' Typeに応じたシートを選択(1回目の処理の時と同じシート名ならEnd Selectまで削除してもOK。新しく開いたフォーマットで処理してくれる)
+            Select Case LCase(nsgType)
+                Case "common"
+                    targetSheet = "Common" 'シート名は適宜変更
+                Case "appgw"
+                    targetSheet = "ApplicationGw"
+                Case "databricks"
+                    targetSheet = "Databricks"
+                Case Else
+                    MsgBox "Unknown NSG Type: " & nsgType
+                    Exit Sub
+            End Select
+
+            ' 追加データに対するTypeに応じたシートを選択
+            Set wsFormat = wbAdditionalFormat.Sheets(targetSheet)
+            formatRowCount = wsFormat.Cells(wsFormat.Rows.Count, "A").End(xlUp).Row ' フォーマットの最終行を取得
+
+            ' 次の空行を探す
+            nextRow = wsNew.Cells(wsNew.Rows.Count, "A").End(xlUp).Row + 1
+
+
+            ' 追加データの貼り付け
+            If targetSheet = "Databricks" Then　'適宜シート名を変更
+                wsFormat.Range("A2:A" & formatRowCount).Value = vnetName
+                wsFormat.Range("B2:B" & formatRowCount).Value = subnetRange
+                wsFormat.Range("C2:C" & formatRowCount).Value = nsgName
+                wsFormat.Range("D2", wsFormat.Cells(formatRowCount, wsFormat.UsedRange.Columns.Count)).Copy 'D2から最終列・行までをコピー
+                wsNew.Cells(nextRow, 2).PasteSpecial Paste:=xlPasteValues 'B列から貼り付け
+            Else
+                wsFormat.Range("A2:A" & formatRowCount).Value = vnetName
+                wsFormat.Range("B2:B" & formatRowCount).Value = subnetName
+                wsFormat.Range("C2:C" & formatRowCount).Value = subnetRange
+                wsFormat.Range("D2:D" & formatRowCount).Value = nsgName
+                wsFormat.Range("E2", wsFormat.Cells(formatRowCount, wsFormat.UsedRange.Columns.Count)).Copy 'E2から最終列・行までをコピー
+                wsNew.Cells(nextRow, 2).PasteSpecial Paste:=xlPasteValues 'B列から貼り付け
+            End If
+        End If
+    Next i
+
+
+    ' CSVとして保存
+    savePath = Application.GetSaveAsFilename(Format(Now, "yyyy-mm-dd") & "_NSG投入.csv", "CSV Files (*.csv), *.csv")
+    If savePath <> "False" Then
+        wbNew.SaveAs Filename:=savePath, FileFormat:=xlCSVUTF8
+        MsgBox "ファイルが保存されました: " & savePath
+    End If
+
+    ' 閉じる
+    wbFormat.Close False
+    If additionalDataFound Then wbAdditionalFormat.Close False
+    wbNew.Close False
+End Sub
