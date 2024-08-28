@@ -1,0 +1,40 @@
+#subscriptionの指定 !!修正箇所
+Select-AzSubscription -subscription <subscriptionName>
+
+#リソースグループ名を設定　!!修正箇所
+$resourceGroupName = "<resourceGroupName>"
+$logsettings = "LogSettings"
+
+#ネットワークセキュリティグループの名前の配列を設定　!!修正箇所
+$networkSecurityGroupNames = @(
+  "<networkSecurityGroupNames1>"
+  "<networkSecurityGroupNames2>"
+  "<networkSecurityGroupNames3>"
+)
+
+#各ネットワークセキュリティグループに対して診断設定を作成
+foreach ($networkSecurityGroupName in $networkSecurityGroupNames) {
+  #診断設定の名前を設定
+  #$diagnosticSettingName = -join $networkSecurityGroupName + $logsettings
+  $diagnosticSettingName = $networkSecurityGroupName + $logsettings
+
+  #ネットワークセキュリティグループのリソースIDを取得
+  $networkSecurityGroupId = (Get-AzNetworkSecurityGroup -ResourceGroupName $resourceGroupName -Name $networkSecurityGroupName).Id
+
+  #ログ設定を作成（NSGのみ）
+  $log = @()
+  $categories = Get-AzDiagnosticSettingCategory -ResourceId $networkSecurityGroupId
+  $categories | ForEach-Object {$log+=New-AzDiagnosticSettingLogSettingsObject -Enabled $true -Category $_.Name}
+  #$log += New-AzDiagnosticSettingLogSettingsObject -Enabled $true -Category $_.Name
+
+  #診断設定の作成  
+  New-AzDiagnosticSetting `
+  -ResourceId $networkSecurityGroupId `
+  -Name $diagnosticSettingName
+  -Log $log `
+  -WorkSpaceId </subscriptions/..../workspaceName>
+}
+
+Write-Host "設定が完了しました。"
+
+
