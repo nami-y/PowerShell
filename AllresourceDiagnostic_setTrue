@@ -1,0 +1,57 @@
+#subscriptionの指定 !!変数(DevOps)もしくは適宜変更
+Select-AzSubscription -subscription <subscriptionName>
+
+#リソースグループ名を設定　!!変数(DevOps)もしくは適宜変更
+$resourceGroupName = "<resourceGroupName>"
+
+#リソースグループ内のすべてのリソースを取得
+$resources = Get-AzResource -ResourceGroupName $resourceGroupName
+
+#各リソースに対して診断設定を作成
+foreach ($resource in $resources) {
+  #診断設定の名前を設定（リソースタイプによる分岐）
+  switch ($resource.ResourceType) {
+    'Microsoft.Network/networkSecurityGroups' {
+      $diagnosticSettingName = $resource.ResourceType + "DiagnosticsLogsToWorkspace"
+    }
+    'Microsoft.Network/loadBalancers' {
+      $diagnosticSettingName = $resource.ResourceType + "DiagnosticsLogsToWorkspace"
+    }
+  }
+}
+
+#各ネットワークセキュリティグループに対して診断設定を作成
+foreach ($networkSecurityGroupName in $networkSecurityGroupNames) {
+  #診断設定の名前を設定
+  #$diagnosticSettingName = -join $networkSecurityGroupName + $logsettings
+  $diagnosticSettingName = $networkSecurityGroupName + $logsettings
+
+  #ネットワークセキュリティグループのリソースIDを取得
+  $resourceID = $resource.ResourceId
+
+  #カテゴリを取得（ログとメトリック両方）
+  $categories = Get-AzDiagnosticSettingCategory -ResourceId $resourceID
+  $log = @()
+  $metric = @()
+
+  #設定を作成
+  $categories | ForEach-Object {
+    if ($_.CategoryType -eq 'Logs') {
+      $log += New-AzDiagnosticSettingLogSettingsObject -Enabled $true -Category $_.Name
+    }
+    elseif ($_.CategoryType -eq 'Metrics') {
+      $metric += New-AzDiagnosticSettingMetricSettingsObject -Enabled $true -Category $_.Name
+    }
+  }
+
+  #診断設定の作成  
+  New-AzDiagnosticSetting `
+  -ResourceId $resourceID `
+  -Name $diagnosticSettingName
+  -Log $log `
+  -MetricSetting $metric `
+  -WorkSpaceId </subscriptions/..../workspaceName>
+}
+
+Write-Host "設定が完了しました。"
+
