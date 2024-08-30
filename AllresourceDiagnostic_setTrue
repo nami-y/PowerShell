@@ -17,8 +17,10 @@ foreach ($resource in $resources) {
     'Microsoft.Network/loadBalancers' {
       $diagnosticSettingName = $resource.ResourceType + "DiagnosticsLogsToWorkspace"
     }
+    Default {
+      $diagnosticSettingName = $resource.ResourceName + "_settings"
+    }
   }
-}
 
 #各ネットワークセキュリティグループに対して診断設定を作成
 foreach ($networkSecurityGroupName in $networkSecurityGroupNames) {
