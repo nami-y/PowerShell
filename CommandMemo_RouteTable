@@ -1,0 +1,50 @@
+#cloudshell実行コマンド
+
+#ルートの作成: ネクストホップに仮想アプライアンスを指定
+az network route-table route create `
+ --resource-group <リソースグループ名> `
+ --route-table-name <ルートテーブル名> `
+ --name <Vnet名> `
+ --address-prefix <vnetのアドレス空間記載する> `
+ --next-hop-type VirtualAppliance `
+ --next-hop-ip-address 10.xx.xxx.xxx `
+
+
+#---------------------------------------------------------------------
+#csvでの実行コマンド
+
+# Active Subscriptionを確認
+az account show
+
+#Active Subscriptionを変更する場合、Azure Portalや下記のコマンドで確認
+az account list
+
+# Active Subscriptionを変更
+az account set --subscription <サブスクリプション名> 
+
+#情報反映
+vi <'ファイル名'>
+
+#情報保存
+:wq
+
+#環境変数に取り込み
+$CSV = Import-CSV <ファイル名> -Encoding UTF8
+
+※CSVファイルをCloud Driveに保存し、指定する方法が簡単
+
+#內容確認
+$CSV
+
+#規則の追加 *Description 追加
+$CSV | foreach{
+az network route-table route create `
+ --resource-group $_.ResourceGroup `
+ --route-table-name $_.RouteTableName `
+ --name $_.Name `
+ --address-prefix $_.AddressPrefix `
+ --next-hop-type $_.NextHopType `
+ --next-hop-ip-address $_.NextHopIpAddress `
+}
+
+
