@@ -1,0 +1,99 @@
+# Active Subscriptionを確認
+az account show
+
+# Active Subscriptionを変更する場合、Azure Portalや下記のコマンドで確認
+az account list
+
+# Active Subscriptionを変更
+az account set --subscription <サブスクリプション名>
+
+#情報反映
+vi <'ファイル名'>
+
+#情報保存
+:wq
+
+#環境変数に取り込み
+$CSV = Import-CSV <'ファイル名' > -Encoding UTF8
+
+※CSVファイルをCloud Driveに保存し、指定する方法が簡単
+
+#內容確認
+$CSV
+
+#事前コンフィグ取得
+$CSV | Sort-Object NSGName -Unique | foreach{ `
+az network nsg rule list --output table `
+--resource-group $_.ResourceGroup `
+--nsg-name $_.NSGName `
+| tee before.txt -a }
+
+
+#規則の追加 subscriptionごと変更
+$CSV | foreach{ `
+az account set --subscription $_.Subscription `
+
+az network nsg rule create `
+--resource-group $_.ResourceGroup `
+--nsg-name $_.NSGName `
+--name $_.RuleName `
+--priority $_.Priority `
+--access $_.Access `
+--destination-address-prefixes ($_.DestinationAddressPrefix -split ";") `
+--destination-port-ranges ($_.DestinationPortRange -split ";") `
+--direction $_.Direction `
+--protocol $_.Protocol `
+--source-address-prefixes ($_.SourceAddressPrefix -split ";") `
+--source-port-ranges ($_.SourcePortRange -split ";") `
+--description ($_.Description-split ";" | Out-String) `
+}
+
+
+#規則の削除 (ファイルにSub列がある場合)
+$CSV | foreach{ `
+az network nsg rule delete `
+--subscription $_.Subscription `
+--resource-group $_.ResourceGroup `
+--nsg-name $_.NSGName `
+--name $_.RuleName `
+}
+
+
+
+
+#規則の追加 * Description 追加
+$CSV | foreach{ `
+az network nsg rule create `
+--resource-group $_.ResourceGroup `
+--nsg-name $_.NSGName `
+--name $_.RuleName `
+--priority $_.Priority `
+--access $_.Access `
+--destination-address-prefixes ($_.DestinationAddress Prefix -split ";") `
+--destination-port-ranges ($_.Destination PortRange -split ";") `
+--direction $_.Direction `
+--protocol $_.Protocol `
+--source-address-prefixes ($_.SourceAddressPrefix -split ";") `
+--source-port-ranges ($_.SourcePortRange -split ";") `
+--description ($_.Description -split ";") `
+}
+
+
+#規則の削除
+$CSV | foreach{ `
+az network nsg rule delete `
+--resource-group $_.ResourceGroup `
+--nsg-name $_.NSGName `
+--name $_.RuleName `
+
+
+#事後確認
+$CSV | Sort-Object NSGName -Unique | foreach{ `
+az network nsg rule list --output table `
+--resource-group $_.resourceGroup `
+--nsg-name $_.NSGName `
+ | tee after.txt -a }
+
+
+
+
