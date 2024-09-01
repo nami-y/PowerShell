@@ -1,0 +1,91 @@
+# Active subscription set
+az account set --subscription <subscriptionName>
+az account show
+
+
+#CSV Import
+$CSV = Import-Csv./PrivateDnsZones_Link_JP-VNET-JPE-DEV-KC-GenAI-TF.csv -Encoding UTF8 
+$CSV
+
+
+# Private Dns Zone create
+$CSV | foreach {
+  echo $_.PrivateDnsZoneName
+
+  az network private-dns zone create `
+    --resource-group $_.ResourceGroupName `
+    --name $_.PrivateDnsZoneName `
+    --no-wait `
+
+  if ($?) {
+    echo "Success"
+  }
+  else {
+    echo "Failed"
+  }
+}
+
+
+#Private link create
+$CSV | foreach {
+  echo $_.PrivateDnsZoneName
+
+  az network private-dns link vnet create `
+    -g $_.ResourceGroupName `
+    -z $_.PrivateDnsZoneName `
+    -v $_.VirtualNetworkId `
+    -n $_.PrivateLinkName `
+    -e false `
+    --no-wait true `
+
+  if ($?) {
+    echo "Success"
+  }
+  else {
+    echo "Failed"
+  }
+}
+
+
+# Private Dns Zone delete
+$CSV foreach {
+  echo $_.PrivateDnsZoneName
+
+  az network private-dns zone delete `
+    --resource-group $_.ResourceGroupName `
+    --name $_.PrivateDnsZoneName `
+    --no-wait `
+
+  if ($?) {
+    echo "Success"
+  }
+  else {
+    echo "Failed"
+  }
+}
+
+
+
+# Private Link delete
+$CSV | foreach {
+  echo $_.PrivateDnsZoneName
+
+  az network private-dns link vnet delete `
+    -g $_.ResourceGroupName `
+    -z $_.PrivateDnsZoneName `
+    -n $_.PrivateLinkName `
+    --no-wait true `
+    --yes `
+
+  if ($?) {
+    echo "Success"
+  }
+else {
+  echo "Failed"
+  }
+}
+
+
+
+
+
