@@ -1,0 +1,8 @@
+#CSVファイルを読み込む
+$csvData = Import-Csv -Path "<Path\Jsonに変換するファイル名.csv>"
+
+#CSVデータをJSON形式に変換
+$jsonData = $csvData | ConvertTo-Json
+
+#JSONデータをファイルに出力
+$jsonData | Out-File "<Path\output.json>" -Encoding UTF8
